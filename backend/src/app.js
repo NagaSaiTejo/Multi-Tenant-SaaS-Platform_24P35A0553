@@ -4,6 +4,7 @@ const dotenv = require('dotenv');
 const db = require('./config/db');
 const runMigrations = require('./utils/runMigrations');
 const runSeeds = require('./utils/runSeeds');
+const authRoutes = require('./routes/authRoutes');
 
 // Load environment variables
 dotenv.config();
@@ -16,6 +17,9 @@ app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true
 }));
+
+// Routes
+app.use('/api/auth', authRoutes);
 
 // Health Check Endpoint
 app.get('/api/health', async (req, res) => {

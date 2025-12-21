@@ -3,6 +3,7 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const db = require('./config/db');
 const runMigrations = require('./utils/runMigrations');
+const runSeeds = require('./utils/runSeeds');
 
 // Load environment variables
 dotenv.config();
@@ -43,6 +44,7 @@ const PORT = process.env.PORT || 5000;
 async function startServer() {
   try {
     await runMigrations();
+    await runSeeds();
     app.listen(PORT, () => {
       console.log(`Backend server running on port ${PORT}`);
     });

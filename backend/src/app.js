@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const db = require('./config/db');
 
 // Load environment variables
 dotenv.config();
@@ -14,10 +15,10 @@ app.use(cors({
   credentials: true
 }));
 
-// Health Check Endpoint (MANDATORY)
+// Health Check Endpoint
 app.get('/api/health', async (req, res) => {
   try {
-    // Database check will be added later
+    await db.query('SELECT 1');
     res.status(200).json({
       status: 'ok',
       database: 'connected'
@@ -32,7 +33,7 @@ app.get('/api/health', async (req, res) => {
 
 // Default route
 app.get('/', (req, res) => {
-  res.json({ message: 'Multi-Tenant SaaS Backend Running' });
+  res.json({message:'Multi-Tenant SaaS Backend Running'});
 });
 
 // Start server

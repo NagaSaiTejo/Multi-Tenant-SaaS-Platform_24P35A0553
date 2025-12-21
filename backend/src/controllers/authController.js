@@ -144,7 +144,35 @@ async function getCurrentUser(req, res) {
   }
 }
 
+const { logAudit } = require('../utils/auditLogger');
+
+async function logout(req, res) {
+  try {
+    const { userId, tenantId } = req.user;
+
+    await logAudit({
+      tenantId,
+      userId,
+      action: 'LOGOUT',
+      entityType: 'auth',
+      ipAddress: req.ip
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Logged out successfully'
+    });
+  } catch (error) {
+    console.error('Logout error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+}
+
 module.exports = {
   login,
-  getCurrentUser
+  getCurrentUser,
+  logout
 };

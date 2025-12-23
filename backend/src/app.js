@@ -5,6 +5,9 @@ const db = require('./config/db');
 const runMigrations = require('./utils/runMigrations');
 const runSeeds = require('./utils/runSeeds');
 const authRoutes = require('./routes/authRoutes');
+const tenantRoutes = require('./routes/tenantRoutes');
+
+app.use('/api/tenants', tenantRoutes);
 
 // Load environment variables
 dotenv.config();

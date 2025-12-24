@@ -6,10 +6,11 @@ const runMigrations = require('./utils/runMigrations');
 const runSeeds = require('./utils/runSeeds');
 const authRoutes = require('./routes/authRoutes');
 const tenantRoutes = require('./routes/tenantRoutes');
-const userRoutes = require('./routes/userRoutes');
-app.use('/api/users', userRoutes);
-app.use('/api/tenants', tenantRoutes);
+const userRoutes = require('./routes/userRoutes');const projectRoutes = require('./routes/projectRoutes');
 
+app.use('/api/tenants', tenantRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/projects', projectRoutes);
 // Load environment variables
 dotenv.config();
 

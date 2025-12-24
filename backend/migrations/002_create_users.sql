@@ -15,4 +15,6 @@ CREATE TABLE users (
     CONSTRAINT unique_email_per_tenant
         UNIQUE (tenant_id, email)
 );
+
+-- DOWN
 DROP TABLE IF EXISTS users;

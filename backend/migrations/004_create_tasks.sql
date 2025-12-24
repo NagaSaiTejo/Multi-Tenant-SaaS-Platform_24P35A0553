@@ -25,4 +25,5 @@ CREATE TABLE tasks (
 );
 
 CREATE INDEX idx_tasks_tenant_project ON tasks(tenant_id, project_id);
+-- DOWN
 DROP TABLE IF EXISTS tasks;

@@ -10,15 +10,16 @@ const userRoutes = require('./routes/userRoutes');
 const projectRoutes = require('./routes/projectRoutes');
 const taskRoutes = require('./routes/taskRoutes');
 
-app.use('/api/tenants', tenantRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/projects', projectRoutes);
-app.use('/api/tasks', taskRoutes);
 
 // Load environment variables
 dotenv.config();
 
 const app = express();
+
+app.use('/api/tenants', tenantRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/projects', projectRoutes);
+app.use('/api/tasks', taskRoutes);
 
 // Middleware
 app.use(express.json());

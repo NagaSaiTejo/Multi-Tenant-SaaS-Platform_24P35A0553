@@ -6,7 +6,8 @@ const runMigrations = require('./utils/runMigrations');
 const runSeeds = require('./utils/runSeeds');
 const authRoutes = require('./routes/authRoutes');
 const tenantRoutes = require('./routes/tenantRoutes');
-
+const userRoutes = require('./routes/userRoutes');
+app.use('/api/users', userRoutes);
 app.use('/api/tenants', tenantRoutes);
 
 // Load environment variables

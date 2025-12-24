@@ -2,8 +2,25 @@ const fs = require('fs');
 const path = require('path');
 const db = require('../config/db');
 
+async function waitForDb(retries = 15) {
+  while (retries > 0) {
+    try {
+      await db.query('SELECT 1');
+      console.log('Database is ready');
+      return;
+    } catch (err) {
+      console.log('Waiting for database...');
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      retries--;
+    }
+  }
+  throw new Error('Database not ready after waiting');
+}
+
 async function runMigrations() {
-  // Create migrations table if not there.
+  await waitForDb();
+
+  // Create migrations table
   await db.query(`
     CREATE TABLE IF NOT EXISTS migrations (
       id SERIAL PRIMARY KEY,
@@ -11,6 +28,7 @@ async function runMigrations() {
       run_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
   const migrationsDir = path.join(__dirname, '../../migrations');
   const files = fs.readdirSync(migrationsDir)
     .filter(file => file.endsWith('.sql'))
@@ -28,6 +46,7 @@ async function runMigrations() {
 
     const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf-8');
     const upSql = sql.split('-- DOWN')[0];
+
     console.log(`Running migration: ${file}`);
     await db.query(upSql);
     await db.query(
@@ -35,6 +54,8 @@ async function runMigrations() {
       [file]
     );
   }
+
   console.log('All migrations completed');
 }
+
 module.exports = runMigrations;

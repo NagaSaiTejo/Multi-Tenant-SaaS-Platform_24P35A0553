@@ -14,6 +14,15 @@ router.get(
   getTenant
 );
 
+const { listTenants } = require('../controllers/tenantController');
+
+router.get(
+  '/',
+  authMiddleware,
+  allowRoles('super_admin'),
+  listTenants
+);
+
 // Update tenant
 router.put(
   '/:tenantId',

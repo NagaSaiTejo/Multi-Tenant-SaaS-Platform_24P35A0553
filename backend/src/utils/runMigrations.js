@@ -2,6 +2,10 @@ const fs = require('fs');
 const path = require('path');
 const db = require('../config/db');
 
+/**
+ * Wait until Postgres is actually ready
+ * (Docker may say "ready" before it really is)
+ */
 async function waitForDb(retries = 15) {
   while (retries > 0) {
     try {
@@ -18,6 +22,7 @@ async function waitForDb(retries = 15) {
 }
 
 async function runMigrations() {
+  // 🔥 Wait for Postgres first
   await waitForDb();
 
   // Create migrations table

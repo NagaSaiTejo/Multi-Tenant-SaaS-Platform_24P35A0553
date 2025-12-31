@@ -1,7 +1,8 @@
-version: "3.8"
+version: '3.8'
 
 services:
-  database:
+  # Database
+  db:
     image: postgres:15
     container_name: database
     environment:
@@ -10,38 +11,37 @@ services:
       POSTGRES_PASSWORD: postgres
     ports:
       - "5432:5432"
-    volumes:
-      - db_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
+    volumes:
+      - db_data:/var/lib/postgresql/data
 
+  # Backend
   backend:
     build: ./backend
     container_name: backend
     ports:
       - "5000:5000"
+    env_file:
+      - ./backend/.env.example
     environment:
-      DB_HOST: database
-      DB_PORT: 5432
-      DB_NAME: saas_db
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-      JWT_SECRET: supersecretkey
-      FRONTEND_URL: http://frontend:3000
+      - DB_HOST=db
+      - FRONTEND_URL=http://localhost:3000
     depends_on:
-      database:
+      db:
         condition: service_healthy
-
+  # Frontend
   frontend:
     build: ./frontend
     container_name: frontend
     ports:
       - "3000:3000"
     environment:
-      REACT_APP_API_URL: http://localhost:5000/api
+      - VITE_API_URL=http://localhost:5000/api
     depends_on:
       - backend
 

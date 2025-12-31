@@ -1,3 +1,4 @@
+-- UP
 CREATE TABLE audit_logs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id UUID NULL,
@@ -19,5 +20,6 @@ CREATE TABLE audit_logs (
 
 CREATE INDEX idx_audit_logs_tenant_id ON audit_logs(tenant_id);
 CREATE INDEX idx_audit_logs_user_id ON audit_logs(user_id);
+
 -- DOWN
 DROP TABLE IF EXISTS audit_logs;

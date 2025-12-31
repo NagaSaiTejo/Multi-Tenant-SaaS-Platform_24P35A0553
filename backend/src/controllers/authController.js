@@ -1,178 +1,145 @@
-const bcrypt = require('bcrypt');
-const db = require('../config/db');
-const { generateToken } = require('../utils/jwt');
+const db = require('../config/db'); // Importing the pool directly
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const { logAudit } = require('../utils/auditLogger');
+
+// Generate JWT Helper
+const generateToken = (user) => {
+  return jwt.sign(
+    { userId: user.id, role: user.role, tenantId: user.tenant_id },
+    process.env.JWT_SECRET || 'secret_key',
+    { expiresIn: '24h' }
+  );
+};
+
+// 1. REGISTER TENANT (FIXED: Now sends max_users=5, max_projects=3)
+async function registerTenant(req, res) {
+  // Get a dedicated client for the transaction
+  const client = await db.connect(); 
+  
+  try {
+    const { tenantName, subdomain, adminEmail, adminPassword, adminFullName } = req.body;
+
+    await client.query('BEGIN'); // Start Transaction
+
+    // A. Check if subdomain exists
+    const subCheck = await client.query('SELECT 1 FROM tenants WHERE subdomain = $1', [subdomain]);
+    if (subCheck.rowCount > 0) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ success: false, message: 'Subdomain already taken' });
+    }
+
+    // B. Create Tenant (THIS IS THE FIX 👇)
+    const tenantResult = await client.query(
+      `INSERT INTO tenants (name, subdomain, status, subscription_plan, max_users, max_projects)
+       VALUES ($1, $2, 'active', 'free', 5, 3) 
+       RETURNING id, name, subdomain`,
+      [tenantName, subdomain]
+    );
+    const newTenant = tenantResult.rows[0];
+
+    // C. Hash Password
+    const hashedPassword = await bcrypt.hash(adminPassword, 10);
+
+    // D. Create Admin User
+    const userResult = await client.query(
+      `INSERT INTO users (tenant_id, email, password_hash, full_name, role)
+       VALUES ($1, $2, $3, $4, 'tenant_admin')
+       RETURNING id, email, full_name, role`,
+      [newTenant.id, adminEmail, hashedPassword, adminFullName]
+    );
+    const newUser = userResult.rows[0];
+
+    await client.query('COMMIT'); // Commit Transaction
+
+    // Audit Log (Safe check)
+    try {
+      if (logAudit) {
+        await logAudit({
+          tenantId: newTenant.id,
+          userId: newUser.id,
+          action: 'REGISTER_TENANT',
+          entityType: 'tenant',
+          entityId: newTenant.id,
+          ipAddress: req.ip
+        });
+      }
+    } catch (e) { console.warn('Audit log skipped'); }
+
+    return res.status(201).json({
+      success: true,
+      message: 'Tenant registered successfully',
+      data: { tenant: newTenant, admin: newUser }
+    });
+
+  } catch (error) {
+    await client.query('ROLLBACK'); // Undo if error
+    console.error('Register Tenant Error:', error); // Log exact error to terminal
+    return res.status(500).json({ success: false, message: 'Registration failed: ' + error.message });
+  } finally {
+    client.release(); // Release connection
+  }
+}
+
+// 2. LOGIN
 async function login(req, res) {
   try {
     const { email, password, tenantSubdomain } = req.body;
-    if (!email || !password || !tenantSubdomain) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email, password, and tenantSubdomain are required'
-      });
-    }
-    // Find tenant
-    const tenantResult = await db.query(
-      'SELECT * FROM tenants WHERE subdomain = $1',
-      [tenantSubdomain]
-    );
-    if (tenantResult.rowCount === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'Tenant not found'
-      });
-    }
-    const tenant = tenantResult.rows[0];
-    if (tenant.status !== 'active') {
-      return res.status(403).json({
-        success: false,
-        message: 'Tenant is not active'
-      });
+
+    const result = await db.query('SELECT * FROM users WHERE email = $1', [email]);
+    if (result.rowCount === 0) return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    
+    const user = result.rows[0];
+
+    const isMatch = await bcrypt.compare(password, user.password_hash);
+    if (!isMatch) return res.status(401).json({ success: false, message: 'Invalid credentials' });
+
+    // Super Admin Bypass
+    if (user.role === 'super_admin') {
+      const token = generateToken(user);
+      return res.status(200).json({ success: true, data: { token, user: { id: user.id, email: user.email, role: user.role } } });
     }
 
-    // Find user within tenant
-    const userResult = await db.query(
-      'SELECT * FROM users WHERE email = $1 AND tenant_id = $2',
-      [email, tenant.id]
-    );
-    if (userResult.rowCount === 0) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials'
-      });
-    }
-    const user = userResult.rows[0];
-    if (!user.is_active) {
-      return res.status(403).json({
-        success: false,
-        message: 'Account is inactive'
-      });
-    }
-    const passwordMatch = await bcrypt.compare(password, user.password_hash);
-    if (!passwordMatch) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials'
-      });
-    }
-    const token = generateToken({
-      userId: user.id,
-      tenantId: user.tenant_id,
-      role: user.role
-    });
-    return res.status(200).json({
-      success: true,
-      data: {
-        user: {
-          id: user.id,
-          email: user.email,
-          fullName: user.full_name,
-          role: user.role,
-          tenantId: user.tenant_id
-        },
-        token,
-        expiresIn: 86400
+    // Tenant Check
+    if (tenantSubdomain) {
+      const tRes = await db.query('SELECT id FROM tenants WHERE subdomain = $1', [tenantSubdomain]);
+      if (tRes.rowCount === 0 || tRes.rows[0].id !== user.tenant_id) {
+        return res.status(403).json({ success: false, message: 'User does not belong to this tenant' });
       }
-    });
-  } catch (error) {
-    console.error('Login error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Internal server error'
-    });
+    }
+
+    const token = generateToken(user);
+    
+    // Audit Log
+    try {
+        if(logAudit) await logAudit({ tenantId: user.tenant_id, userId: user.id, action: 'LOGIN', entityType: 'auth', ipAddress: req.ip });
+    } catch (e) { console.warn('Audit log skipped'); }
+
+    res.json({ success: true, data: { token, user: { id: user.id, email: user.email, role: user.role, tenantId: user.tenant_id } } });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 }
+
+// 3. GET CURRENT USER
 async function getCurrentUser(req, res) {
   try {
     const { userId } = req.user;
-
     const result = await db.query(
-      `
-      SELECT 
-        u.id,
-        u.email,
-        u.full_name,
-        u.role,
-        u.is_active,
-        t.id AS tenant_id,
-        t.name AS tenant_name,
-        t.subdomain,
-        t.subscription_plan,
-        t.max_users,
-        t.max_projects
-      FROM users u
-      LEFT JOIN tenants t ON u.tenant_id = t.id
-      WHERE u.id = $1
-      `,
-      [userId]
+      `SELECT u.id, u.email, u.full_name, u.role, u.tenant_id, t.name as tenant_name, t.subdomain
+       FROM users u LEFT JOIN tenants t ON u.tenant_id = t.id WHERE u.id = $1`, [userId]
     );
-
-    if (result.rowCount === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    const row = result.rows[0];
-
-    return res.status(200).json({
-      success: true,
-      data: {
-        id: row.id,
-        email: row.email,
-        fullName: row.full_name,
-        role: row.role,
-        isActive: row.is_active,
-        tenant: row.tenant_id
-          ? {
-              id: row.tenant_id,
-              name: row.tenant_name,
-              subdomain: row.subdomain,
-              subscriptionPlan: row.subscription_plan,
-              maxUsers: row.max_users,
-              maxProjects: row.max_projects
-            }
-          : null
-      }
-    });
-  } catch (error) {
-    console.error('Get current user error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Internal server error'
-    });
+    if (result.rowCount === 0) return res.status(404).json({ success: false });
+    res.json({ success: true, data: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 }
-
-const { logAudit } = require('../utils/auditLogger');
 
 async function logout(req, res) {
-  try {
-    const { userId, tenantId } = req.user;
-
-    await logAudit({
-      tenantId,
-      userId,
-      action: 'LOGOUT',
-      entityType: 'auth',
-      ipAddress: req.ip
-    });
-
-    return res.status(200).json({
-      success: true,
-      message: 'Logged out successfully'
-    });
-  } catch (error) {
-    console.error('Logout error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Internal server error'
-    });
-  }
+  res.json({ success: true, message: 'Logged out' });
 }
 
-module.exports = {
-  login,
-  getCurrentUser,
-  logout
-};
+module.exports = { registerTenant, login, getCurrentUser, logout };

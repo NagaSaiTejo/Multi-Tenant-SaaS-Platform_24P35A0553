@@ -1,3 +1,4 @@
+-- UP
 CREATE TABLE projects (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tenant_id UUID NOT NULL,
@@ -18,5 +19,6 @@ CREATE TABLE projects (
 );
 
 CREATE INDEX idx_projects_tenant_id ON projects(tenant_id);
+
 -- DOWN
 DROP TABLE IF EXISTS projects;

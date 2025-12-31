@@ -1,117 +1,100 @@
-# Multi-Tenant SaaS Platform
+## Multi-Tenant SaaS Platform
 
-A production-ready, multi-tenant Project Management System built with Node.js, React, and PostgreSQL. This application implements a **Shared Database, Shared Schema** architecture with strict logical isolation using `tenant_id`.
+A production-grade Multi-Tenant SaaS system built with React, Node.js, PostgreSQL, JWT, and Docker.
+This platform allows multiple organizations (tenants) to securely share one application while keeping their data, users, and limits fully isolated.
 
-## 🚀 Key Features Implemented
+=> What This Project Is:
 
-### 1. Multi-Tenancy Architecture
-- **Data Isolation:** Every database query is scoped by `tenant_id` to prevent data leaks.
-- **Subdomain Resolution:** Tenants are identified via subdomains (e.g., `demo.localhost`).
-- **Transactional Registration:** Tenant creation and Admin User creation happen in a single ACID transaction. If one fails, both roll back.
+This is a role-based, subscription-aware SaaS platform where:
+  Multiple companies (tenants) can use the same system
+  Each tenant has isolated data
+  Each user has role-based access
+  Each tenant has plan-based limits
+  A live dashboard shows real usage.
 
-### 2. Security & RBAC
-- **JWT Authentication:** Stateless authentication with 24-hour token expiry.
-- **Role-Based Access Control (RBAC):**
-  - **Super Admin:** System-wide access, can delete tenants (Cascade Delete implemented).
-  - **Tenant Admin:** Full control over their own organization's users and projects.
-  - **User:** Read/Write access to assigned tasks and projects only.
-- **Password Security:** All passwords are hashed using `bcryptjs`.
-- **Protected Actions:**
-  - **Super Admin Immunity:** Logic prevents Super Admins from being deleted.
-  - **Self-Deletion Block:** Tenant Admins cannot delete their own active organization.
+=> User Roles:
+  Role	Access
+  Super Admin	Manage all tenants
+  Tenant Admin	Manage users & projects for their company
+  User	Work only inside their organization
 
-### 3. Subscription Management & Limits
-- **Tiered Plans:** Support for Free, Pro, and Enterprise tiers.
-- **Limit Enforcement:** The system checks `max_projects` and `max_users` limits *before* inserting new records.
-  - *Example:* A "Basic" tenant cannot create more than 3 projects.
-- **Dashboard Visualization:**
-  - **Real-time Progress Bars:** Visual indicators (Blue/Green/Red) showing resource usage vs. plan limits.
-  - **Exact Counters:** Explicitly displays "Used / Max" (e.g., `2 / 3`) for clarity.
+=> Key Features:
+  Multi-tenant data isolation
+  JWT authentication
+  Role-based authorization
+  Subscription limits (projects & users)
+  Real-time dashboard
+  Audit logging
+  Dockerized deployment
+  Clean SaaS UI
 
-### 4. Project & Task Management (CRUD)
-- **Projects:**
-  - **Create:** Limit-checked creation.
-  - **Edit:** Renaming and description updates available via "Edit Pencil" icon.
-  - **Delete:** Secure deletion with ownership checks.
-- **Tasks:**
-  - **Create:** Assign to specific team members with Priority levels (High/Medium/Low).
-  - **Edit:** Inline editing of task titles to fix typos or updates.
-  - **Status Toggling:** One-click circular checkbox to instantly toggle between "Todo" and "Completed".
-  - **Prioritization:** Visual badges for High/Medium/Low priority.
-  - **Cascade Deletion:** Deleting a project automatically cleans up its tasks.
-  - **Task Deletion:** Individual tasks can be deleted with a confirmation prompt.
+=> Folder Structure:
+  Multi-Tenant-SaaS/
+  │
+  ├── backend/
+  │   ├── src/
+  │   │   ├── controllers/
+  │   │   ├── routes/
+  │   │   ├── middleware/
+  │   │   ├── config/
+  │   │   └── utils/
+  │   └── migrations/
+  │
+  ├── frontend/
+  │   ├── src/
+  │   │   ├── pages/
+  │   │   ├── layouts/
+  │   │   ├── components/
+  │   │   └── api/
+  │
+  ├── docker-compose.yml
+  └── README.md
 
-### 5. Audit Logging
-- Critical actions (Login, Create Tenant, Delete User, etc.) are logged to an `audit_logs` table for compliance and security tracking.
+=> Architecture:
+  React Frontend (Nginx)
+          ↓
+  Node.js API (JWT secured)
+          ↓
+  PostgreSQL (Multi-tenant DB)
 
----
 
-## 🛠️ Technology Stack
-- **Frontend:** React 18 (Vite), Tailwind CSS, Axios, Lucide Icons.
-- **Backend:** Node.js (v18), Express.js.
-- **Database:** PostgreSQL 15.
-- **Infrastructure:** Docker & Docker Compose (Orchestration).
+Every API request is:
+  Authenticated
+  Tenant-scoped
+  Role-validated
 
----
+=>How can you run this project:
 
-## 🏗️ System Architecture
-The application uses a 3-tier architecture:
-1.  **Client Layer:** React SPA consuming RESTful APIs.
-2.  **API Layer:** Express.js server with:
-    - `authMiddleware`: Validates JWTs.
-    - `roleMiddleware`: Enforces permissions.
-    - `tenantMiddleware`: Ensures operations stay within tenant boundaries.
-3.  **Data Layer:** PostgreSQL with Foreign Key constraints and Indexing on `tenant_id`.
+  Make sure Docker is installed in your computer,
 
----
+  docker compose up -d
 
-## ⚙️ Environment Variables
-The following variables are pre-configured in `docker-compose.yml` for the evaluation environment.
+  Open in browser:
+  http://localhost:3000
 
-| Variable | Description | Value |
-| :--- | :--- | :--- |
-| `PORT` | Backend API Port | `5000` |
-| `DB_HOST` | Database Service Name | `database` |
-| `DB_USER` | Database User | `postgres` |
-| `DB_PASSWORD` | Database Password | `postgres` |
-| `DB_NAME` | Database Name | `saas_db` |
-| `JWT_SECRET` | Token Signing Key | `your_jwt_secret_key` |
-| `FRONTEND_URL` | CORS Allowed Origin | `http://frontend:3000` |
+=> Demo Accounts
+  Role	Email	Password
+  Super Admin	superadmin@system.com
+    Admin@123
+  Tenant Admin	admin@demo.com
+    Demo@123
+  User	user1@demo.com
+    User@123
 
----
+  Tenant: demo
 
-2.  **Access Points:**
-    - **Frontend:** [http://localhost:3000](http://localhost:3000)
-    - **Backend API:** [http://localhost:5000](http://localhost:5000)
-    - **Health Check:** [http://localhost:5000/api/health](http://localhost:5000/api/health)
+=> What This Project Proves:
 
----
+This project shows:
 
-## 🔑 Default Test Credentials (Seed Data)
+  Real SaaS architecture
+  Multi-tenant backends
+  Secure authentication systems
+  Role-based access control
+  Dockerized production systems
+  Professional dashboards.
 
-Use these credentials to test the various roles and isolation features.
+=> Built By:
 
-| Role | Email | Password | Tenant / Context |
-| :--- | :--- | :--- | :--- |
-| **Super Admin** | `superadmin@system.com` | `Admin@123` | *System Wide* |
-| **Tenant Admin** | `admin@demo.com` | `Demo@123` | **Demo Company** |
-| **Team Member** | `user1@demo.com` | `User@123` | **Demo Company** |
-
----
-
-## 📡 API Documentation
-The backend exposes 19+ endpoints. Key endpoints include:
-
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `POST` | `/api/auth/login` | Authenticate user |
-| `POST` | `/api/auth/register-tenant` | Register new organization |
-| `GET` | `/api/tenants` | List all tenants (Super Admin) |
-| `DELETE` | `/api/tenants/:id` | Delete tenant & all data |
-| `GET` | `/api/projects` | List projects for current tenant |
-| `POST` | `/api/projects` | Create project (Limit checked) |
-| `PUT` | `/api/projects/:id` | Update project details (Edit) |
-| `POST` | `/api/tasks` | Create new task |
-| `PUT` | `/api/tasks/:id` | Update task title (Edit) |
-| `PATCH` | `/api/tasks/:id/status` | Toggle task completion |
-| `DELETE` | `/api/tasks/:id` | Delete individual task |
+Naga Sai Satyanarayana Murthy Tejomurthula
+B.Tech CSE | Full-Stack Developern Web/Flutter.
